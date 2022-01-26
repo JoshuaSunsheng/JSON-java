@@ -69,8 +69,6 @@ testToJSONWithReaderAndPointerWithReplace1 Run time：5ms
 testToJSONWithReaderAndPointerWithReplace2 Run time：5ms
 ```
 
-<p>This document's intention is to explain to new-comers the basics of this project</p>
-
 	
 <h2>Part 1: Implementations functions</h2>
 
