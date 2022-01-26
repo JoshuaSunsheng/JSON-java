@@ -24,12 +24,16 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 */
 
+import org.json.execption.JSONFoundExecption;
+
 import java.io.Reader;
 import java.io.StringReader;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 
 
 /**
@@ -119,7 +123,7 @@ public class XML {
     /**
      * Replace special characters with XML escapes:
      *
-     * <pre>{@code 
+     * <pre>{@code
      * &amp; (ampersand) is replaced by &amp;amp;
      * &lt; (less than) is replaced by &amp;lt;
      * &gt; (greater than) is replaced by &amp;gt;
@@ -281,6 +285,8 @@ public class XML {
             c = x.next();
             if (c == '-') {
                 if (x.next() == '-') {
+                    //denoting this line is annotation
+                    //ignore <!--  -->
                     x.skipPast("-->");
                     return false;
                 }
@@ -335,7 +341,7 @@ public class XML {
             throw x.syntaxError("Misshaped tag");
 
             // Open tag <
-
+            //if token is tagName
         } else {
             tagName = (String) token;
             token = null;
@@ -348,6 +354,8 @@ public class XML {
                 }
                 // attribute = value
                 if (token instanceof String) {
+                    //why two consecutive String, then =
+                    //maybe is loop cause, last loop
                     string = (String) token;
                     token = x.nextToken();
                     if (token == EQ) {
@@ -385,6 +393,7 @@ public class XML {
                         if (nilAttributeFound) {
                             context.append(tagName, JSONObject.NULL);
                         } else if (jsonObject.length() > 0) {
+                            //in loop
                             context.append(tagName, jsonObject);
                         } else {
                             context.put(tagName, new JSONArray());
@@ -402,7 +411,10 @@ public class XML {
 
                 } else if (token == GT) {
                     // Content, between <...> and </...>
+                    // after a String, if it is >, then analysis inner content
                     for (;;) {
+                        //loop goal: first time temporally save String, second time put into parent JSONObject
+                        //if has nested element, do recursion
                         token = x.nextContent();
                         if (token == null) {
                             if (tagName != null) {
@@ -423,6 +435,9 @@ public class XML {
 
                         } else if (token == LT) {
                             // Nested element
+                            // new <
+                            //when subStruct come across opposite one, subStruct's recursion return true to subStruct
+                            //when subStruct has been accumulated, return false to parentis done
                             if (parse(x, jsonObject, tagName, config)) {
                                 if (config.getForceList().contains(tagName)) {
                                     // Force the value to be an array
@@ -436,15 +451,300 @@ public class XML {
                                     }
                                 } else {
                                     if (jsonObject.length() == 0) {
+                                        //let values of same tagName, save as JSONArray
                                         context.accumulate(tagName, "");
                                     } else if (jsonObject.length() == 1
                                             && jsonObject.opt(config.getcDataTagName()) != null) {
+                                        //enter into subStruct and then return true, come here when subStruct is <name>value</name>
+                                        //config.getcDataTagName():"content" is temporally saving key
                                         context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
                                     } else {
+                                        //when subStruct has nested element like <address><zipcode>111</zipcode><street>Ave</street><address>
                                         context.accumulate(tagName, jsonObject);
                                     }
                                 }
-                                
+
+                                return false;
+                            }
+                        }
+                    }
+                } else {
+                    throw x.syntaxError("Misshaped tag");
+                }
+            }
+        }
+    }
+
+
+
+
+    /**
+     * Scan the content following the named tag, attaching it to the context.
+     *
+     * @param x
+     *            The XMLTokener containing the source string.
+     * @param context
+     *            The JSONObject that will include the new material.
+     * @param name
+     *            The tag name.
+     * @param paths paths of JSONPointer
+     * @return true if the close tag is processed.
+     * @throws JSONException
+     */
+    private static boolean parseWithPath(XMLTokener x, JSONObject context, String name, XMLParserConfiguration config, String[] paths, int level, int pLevel, JSONObject replacement)
+            throws JSONException, JSONFoundExecption {
+        char c;
+        int i;
+        JSONObject jsonObject = null;
+        String string;
+        String tagName;
+        Object token;
+        XMLXsiTypeConverter<?> xmlXsiTypeConverter;
+
+        // Test for and skip past these forms:
+        // <!-- ... -->
+        // <! ... >
+        // <![ ... ]]>
+        // <? ... ?>
+        // Report errors for these forms:
+        // <>
+        // <=
+        // <<
+
+        token = x.nextToken();
+
+        // <!
+
+        if (token == BANG) {
+            c = x.next();
+            if (c == '-') {
+                if (x.next() == '-') {
+                    //denoting this line is annotation
+                    //ignore <!--  -->
+                    x.skipPast("-->");
+                    return false;
+                }
+                x.back();
+            } else if (c == '[') {
+                token = x.nextToken();
+                if ("CDATA".equals(token)) {
+                    if (x.next() == '[') {
+                        string = x.nextCDATA();
+                        if (string.length() > 0) {
+                            context.accumulate(config.getcDataTagName(), string);
+                        }
+                        return false;
+                    }
+                }
+                throw x.syntaxError("Expected 'CDATA['");
+            }
+            i = 1;
+            do {
+                token = x.nextMeta();
+                if (token == null) {
+                    throw x.syntaxError("Missing '>' after '<!'.");
+                } else if (token == LT) {
+                    i += 1;
+                } else if (token == GT) {
+                    i -= 1;
+                }
+            } while (i > 0);
+            return false;
+        } else if (token == QUEST) {
+
+            // <?
+            x.skipPast("?>");
+            return false;
+        } else if (token == SLASH) {
+
+            // Close tag </
+
+            token = x.nextToken();
+            if (name == null) {
+                throw x.syntaxError("Mismatched close tag " + token);
+            }
+            if (!token.equals(name)) {
+                throw x.syntaxError("Mismatched " + name + " and " + token);
+            }
+            if (x.nextToken() != GT) {
+                throw x.syntaxError("Misshaped close tag");
+            }
+            return true;
+
+        } else if (token instanceof Character) {
+            throw x.syntaxError("Misshaped tag");
+
+            // Open tag <
+            //if token is tagName
+        } else {
+            tagName = (String) token;
+            token = null;
+            jsonObject = new JSONObject();
+            boolean nilAttributeFound = false;
+            xmlXsiTypeConverter = null;
+
+            //add by Sunsheng Su
+            if(level == pLevel){
+                if(paths[pLevel].equals(tagName)){
+                    if(pLevel < paths.length-1){
+                        pLevel++;
+                    }
+
+                    //for toJSONObject with replacement
+                    if(replacement != null && pLevel == level){ //paths.length -1
+                        x.skipPast("</" +tagName+ ">");
+                        //from professor Cristina test demo and responses to Justin, replacement has the last key of paths
+                        context.put(tagName, replacement.get(tagName));
+                        return false;
+                    }
+                }
+                else if(replacement == null){
+                    x.skipPast("</" +tagName+ ">");
+                    return false;
+                }
+            }
+
+            for (;;) {
+                if (token == null) {
+                    token = x.nextToken();
+                }
+                // attribute = value
+                if (token instanceof String) {
+                    //why two consecutive String, then =
+                    //maybe is loop cause, last loop
+                    string = (String) token;
+                    token = x.nextToken();
+                    if (token == EQ) {
+                        token = x.nextToken();
+                        if (!(token instanceof String)) {
+                            throw x.syntaxError("Missing value");
+                        }
+
+                        if (config.isConvertNilAttributeToNull()
+                                && NULL_ATTR.equals(string)
+                                && Boolean.parseBoolean((String) token)) {
+                            nilAttributeFound = true;
+                        } else if(config.getXsiTypeMap() != null && !config.getXsiTypeMap().isEmpty()
+                                && TYPE_ATTR.equals(string)) {
+                            xmlXsiTypeConverter = config.getXsiTypeMap().get(token);
+                        } else if (!nilAttributeFound) {
+                            jsonObject.accumulate(string,
+                                    config.isKeepStrings()
+                                            ? ((String) token)
+                                            : stringToValue((String) token));
+                        }
+                        token = null;
+                    } else {
+                        jsonObject.accumulate(string, "");
+                    }
+
+                } else if (token == SLASH) {
+                    // Empty tag <.../>
+                    if (x.nextToken() != GT) {
+                        throw x.syntaxError("Misshaped tag");
+                    }
+                    if (config.getForceList().contains(tagName)) {
+                        // Force the value to be an array
+                        if (nilAttributeFound) {
+                            context.append(tagName, JSONObject.NULL);
+                        } else if (jsonObject.length() > 0) {
+                            //in loop
+                            context.append(tagName, jsonObject);
+                        } else {
+                            context.put(tagName, new JSONArray());
+                        }
+                    } else {
+                        if (nilAttributeFound) {
+                            context.accumulate(tagName, JSONObject.NULL);
+                        } else if (jsonObject.length() > 0) {
+                            context.accumulate(tagName, jsonObject);
+                        } else {
+                            context.accumulate(tagName, "");
+                        }
+                    }
+                    return false;
+
+                } else if (token == GT) {
+                    // Content, between <...> and </...>
+                    // after a String, if it is >, then analysis inner content
+                    for (;;) {
+                        //loop goal: first time temporally save String, second time put into parent JSONObject
+                        //if has nested element, do recursion
+                        token = x.nextContent();
+                        if (token == null) {
+                            if (tagName != null) {
+                                throw x.syntaxError("Unclosed tag " + tagName);
+                            }
+                            return false;
+                        } else if (token instanceof String) {
+                            string = (String) token;
+                            if (string.length() > 0) {
+                                if(xmlXsiTypeConverter != null) {
+                                    jsonObject.accumulate(config.getcDataTagName(),
+                                            stringToValue(string, xmlXsiTypeConverter));
+                                } else {
+                                    jsonObject.accumulate(config.getcDataTagName(),
+                                            config.isKeepStrings() ? string : stringToValue(string));
+                                }
+                            }
+
+                        } else if (token == LT) {
+                            // still has <, denoting Nested element
+                            // new <
+                            //when subStruct come across opposite one, subStruct's recursion return true to subStruct. So, the tagName's content will be add
+                            //when subStruct has been accumulated, return false to calling position
+                            //address -> "<" -> street -> "<" -> /street -> true to add street into JSONObject -> false -> address
+                            //address -> "<" -> zipcode -> "<" -> /zipcode -> true to add zipcode into JSONObject -> false -> address
+                            //address -> "<" -> /address -> true to add address(JSONObject[street,zipcode]) to JSONObject(upper level)
+
+                            if (parseWithPath(x, jsonObject, tagName, config, paths, level+1, pLevel, replacement)) {
+                                if (config.getForceList().contains(tagName)) {
+                                    // Force the value to be an array
+                                    if (jsonObject.length() == 0) {
+                                        context.put(tagName, new JSONArray());
+                                    } else if (jsonObject.length() == 1
+                                            && jsonObject.opt(config.getcDataTagName()) != null) {
+                                        context.append(tagName, jsonObject.opt(config.getcDataTagName()));
+                                    } else {
+                                        context.append(tagName, jsonObject);
+                                    }
+                                } else {
+                                    if (jsonObject.length() == 0) {
+                                        //let values of same tagName, save as JSONArray
+                                        context.accumulate(tagName, "");
+                                    } else if (jsonObject.length() == 1
+                                            && jsonObject.opt(config.getcDataTagName()) != null) {
+                                        //todo why jsonObject.length == 1 1:array reason 2:same name with content
+                                        //enter into subStruct and then return true, come here when subStruct is <name>value</name>
+                                        //config.getcDataTagName(): key:"content" is temporally saved with String
+                                        context.accumulate(tagName, jsonObject.opt(config.getcDataTagName()));
+                                    } else {
+                                        //when subStruct has nested element like <address><zipcode>111</zipcode><street>Ave</street><address>
+                                        context.accumulate(tagName, jsonObject);
+                                    }
+                                }
+
+                                //add by Sunsheng Su
+                                //pLevel == path.length-1 (no need)
+                                //pLevel not equal to level unless pLevel reach the last one
+                                //this block code only executed when tagName has been found totally, including children
+                                if(replacement == null  && pLevel == paths.length-1 && level == pLevel-1){
+                                    //for normal path, , like /a/b/c, this is b level and to get tagName c
+                                    if (paths[pLevel].split("[^0-9]").length != 1){
+                                        throw new JSONFoundExecption( jsonObject.opt(paths[pLevel]));
+                                    }
+                                    //for path with index, like /a/b/c/1, this is c level, and accumulate until 1.
+                                    else{
+                                        int index = Integer.parseInt(paths[pLevel]);
+                                        if(index == 0){
+                                            throw new JSONFoundExecption( jsonObject.opt(config.getcDataTagName()));
+                                        }
+                                        else if(context.get(paths[pLevel-1]) instanceof JSONArray){
+                                            if(context.getJSONArray(paths[pLevel-1]).length() == index+1)
+                                                throw new JSONFoundExecption( jsonObject.opt(config.getcDataTagName()));
+                                        }
+                                    }
+                                }
                                 return false;
                             }
                         }
@@ -508,7 +808,7 @@ public class XML {
         }
         return string;
     }
-    
+
     /**
      * direct copy of {@link JSONObject#stringToNumber(String)} to maintain Android support.
      */
@@ -555,7 +855,7 @@ public class XML {
             // integer representation.
             // This will narrow any values to the smallest reasonable Object representation
             // (Integer, Long, or BigInteger)
-            
+
             // BigInteger down conversion: We use a similar bitLength compare as
             // BigInteger#intValueExact uses. Increases GC, but objects hold
             // only what they need. i.e. Less runtime overhead if the value is
@@ -571,7 +871,7 @@ public class XML {
         }
         throw new NumberFormatException("val ["+val+"] is not a valid number.");
     }
-    
+
     /**
      * direct copy of {@link JSONObject#isDecimalNotation(String)} to maintain Android support.
      */
@@ -589,7 +889,7 @@ public class XML {
      * name/value pairs and arrays of values. JSON does not does not like to
      * distinguish between elements and attributes. Sequences of similar
      * elements are represented as JSONArrays. Content text may be placed in a
-     * "content" member. Comments, prologs, DTDs, and <pre>{@code 
+     * "content" member. Comments, prologs, DTDs, and <pre>{@code
      * &lt;[ [ ]]>}</pre>
      * are ignored.
      *
@@ -610,7 +910,7 @@ public class XML {
      * name/value pairs and arrays of values. JSON does not does not like to
      * distinguish between elements and attributes. Sequences of similar
      * elements are represented as JSONArrays. Content text may be placed in a
-     * "content" member. Comments, prologs, DTDs, and <pre>{@code 
+     * "content" member. Comments, prologs, DTDs, and <pre>{@code
      * &lt;[ [ ]]>}</pre>
      * are ignored.
      *
@@ -690,7 +990,7 @@ public class XML {
      * name/value pairs and arrays of values. JSON does not does not like to
      * distinguish between elements and attributes. Sequences of similar
      * elements are represented as JSONArrays. Content text may be placed in a
-     * "content" member. Comments, prologs, DTDs, and <pre>{@code 
+     * "content" member. Comments, prologs, DTDs, and <pre>{@code
      * &lt;[ [ ]]>}</pre>
      * are ignored.
      *
@@ -716,7 +1016,7 @@ public class XML {
      * name/value pairs and arrays of values. JSON does not does not like to
      * distinguish between elements and attributes. Sequences of similar
      * elements are represented as JSONArrays. Content text may be placed in a
-     * "content" member. Comments, prologs, DTDs, and <pre>{@code 
+     * "content" member. Comments, prologs, DTDs, and <pre>{@code
      * &lt;[ [ ]]>}</pre>
      * are ignored.
      *
@@ -732,6 +1032,74 @@ public class XML {
     public static JSONObject toJSONObject(String string, XMLParserConfiguration config) throws JSONException {
         return toJSONObject(new StringReader(string), config);
     }
+
+
+    /**
+     *  milestone 2
+     *  Read an XML file into a JSON object, and extract some smaller sub-object inside,
+     *  given a certain path (use JSONPointer).
+     * @param reader
+     *            The source string.
+     * @param path Configuration options for the parser.
+     * @return A JSONObject containing the structured data from the XML string.
+     * @throws JSONException Thrown if there is an errors while parsing the string
+     */
+    public static Object toJSONObject(Reader reader, JSONPointer path) {
+        try {
+            getJsonObjectWithPath(reader, path, null);
+        } catch (JSONFoundExecption e) {
+//            System.out.println(e.getMessage());
+            if (e.getCode().equals("200")) {
+                return e.getJsonObject();
+            }
+        }
+        return null;
+    }
+
+    /*
+    *
+    * @param level: JSON level depth
+    * @param pLevel: path level depth
+    * @param replace: JSONObject
+    * */
+    private static JSONObject getJsonObjectWithPath(Reader reader, JSONPointer path, JSONObject replace) throws JSONFoundExecption {
+        JSONObject jo = new JSONObject();
+        XMLTokener x = new XMLTokener(reader);
+        String[] paths = path.toString().split("/");
+        paths = Arrays.copyOfRange(paths, 1, paths.length);
+
+        while (x.more()) {
+            x.skipPast("<");
+            if (x.more()) {
+                parseWithPath(x, jo, null, XMLParserConfiguration.ORIGINAL, paths, 0, 0, replace);
+            }
+        }
+        return jo;
+    }
+
+    /**
+     *  milestone 2
+     *  Read an XML file into a JSON object, replace a sub-object on a certain key path
+     *  with another JSON object that you construct,
+     *
+     * @param reader
+     *            The source string.
+     * @param path Configuration options for the parser.
+     * @param replacement Configuration options for the parser.
+     * @return A JSONObject containing the structured data from the XML string.
+     * @throws JSONException Thrown if there is an errors while parsing the string
+     */
+    public static JSONObject toJSONObject(Reader reader, JSONPointer path, JSONObject replacement) {
+
+        JSONObject jo = null;
+        try {
+            jo = getJsonObjectWithPath(reader, path, replacement);
+        } catch (JSONFoundExecption e) {
+            e.printStackTrace();
+        }
+        return jo;
+    }
+
 
     /**
      * Convert a JSONObject into a well-formed, element-normal XML string.
