@@ -46,6 +46,10 @@ Index of JSONArray: /clinical_study/condition_browse/mesh_term/1
                                     XMLParserConfiguration config, String[] paths, 
                                 int level, int pLevel, JSONObject replacement)
 
+<p>org/json/execption/JSONFoundExecption.java:</p>
+
+    JSONFoundExecption(Object jsonObject)
+
 
 <h3>Test Units (Junit)</h3>
 <p>org/json/junit/XMLMyTest.java:</p>
