@@ -487,7 +487,14 @@ public class XML {
      *            The JSONObject that will include the new material.
      * @param name
      *            The tag name.
-     * @param paths paths of JSONPointer
+     * @param paths
+     *            paths of JSONPointer
+     * @param level
+     *            depth level of xml/JSONObject
+     * @param pLevel
+     *            depth level of paths
+     * @param replacement
+     *            JSONObject that is going to replace the path's object
      * @return true if the close tag is processed.
      * @throws JSONException
      */
@@ -598,6 +605,7 @@ public class XML {
                         return false;
                     }
                 }
+                //for toJSONObject with extract object, skip other tagNames
                 else if(replacement == null){
                     x.skipPast("</" +tagName+ ">");
                     return false;
