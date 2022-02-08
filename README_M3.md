@@ -66,6 +66,7 @@ public void testToJSONKeyReverseWithKeyTransformer() throws IOException {
 | ---       | ---    | ---     | ---     |
 | testToJSONKeyReplaceInClient | 18ms   | 43,045ms    | 103,838ms   |
 | testToJSONKeyReplaceWithKeyTransformer | 78ms    | 33,132ms    | 89,854ms  |
+
 ("testToJSONKeyReplaceInClient" does it in client code. 
 "testToJSONKeyReplaceWithKeyTransformer" does it in library.)
 
