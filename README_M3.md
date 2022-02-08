@@ -32,7 +32,9 @@ Since Milestone 3 uses Function as a parameter, it needs to adjust the jdk to 1.
 
 <h2>Test Units (Junit)</h2>
 
-<p>src/test/java/org/json/junit/XMLMyTestM3.java:</p>
+<p>Test two kind of key transformer: key replace and key reverse. And do a key replace in client code VS. inside library</p>
+
+<p>Test file position: src/test/java/org/json/junit/XMLMyTestM3.java.</p>
 
 ```
 //replace key in client code
