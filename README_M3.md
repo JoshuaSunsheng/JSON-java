@@ -66,14 +66,13 @@ public void testToJSONKeyReverseWithKeyTransformer() throws IOException {
 | ---       | ---    | ---     | ---     |
 | testToJSONKeyReplaceInClient | 18ms   | 43,045ms    | 103,838ms   |
 | testToJSONKeyReplaceWithKeyTransformer | 78ms    | 33,132ms    | 89,854ms  |
+("testToJSONKeyReplaceInClient" does it in client code. 
+"testToJSONKeyReplaceWithKeyTransformer" does it in library.)
 
-Function "testToJSONKeyReplaceInClient" replaces key in client code. 
-Function "testToJSONKeyReplaceWithKeyTransformer" replaces key in library, not in client code.
-
-From testing result, we can see that for a small file, doing key replace in client code runs faster than doing it inside library.
+We can see that for a small file, doing key replace in client code runs faster than doing it inside library.
 But for big files, doing key replace inside library runs much faster than doing it in client code.
 
-I guess that replacing the key in the library by passing a function of KeyTransformer has additional calling consuming time. 
+I guess that passing a function of KeyTransformer and calling it may have additional calling consuming time. 
 For small files, this calling consuming time is significant. But for big files, it can be trivial. 
 
 
@@ -84,10 +83,10 @@ To execute the task of key transformation, put the function of "keyTransformer" 
 <h3>1. deals with global tagName for most cases: put keyTransformer inside callback "parse" (tagName meet with pair end tagName).</h3>
 
 ```
-    if (parse(x, jsonObject, tagName, config, keyTransformer)) {
-        tagName = (String) keyTransformer.apply(tagName);
-        ...
-    }
+if (parse(x, jsonObject, tagName, config, keyTransformer)) {
+    tagName = (String) keyTransformer.apply(tagName);
+    ...
+}
 ```
 
 <h3>2. to deal with special xml format, like below</h3>
