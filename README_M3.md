@@ -1,6 +1,9 @@
 <h1>Milestone 3</h1>
 
-Overload function "toJSONObject" and "parse".
+Read an XML file into a JSON object, and add the prefix "swe262_" to all of its keys. 
+Do it by adding an overloaded static method to the XML class with the signature
+
+<h2>Overload function "toJSONObject" and "parse".</h2>
 
 ```
 public static JSONObject toJSONObject(Reader reader, Function keyTransformer);
