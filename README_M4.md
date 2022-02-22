@@ -10,22 +10,22 @@ Test Units Cases: src/test/java/org/json/junit/M4StreamTest.java
 
 (https://github.com/JoshuaSunsheng/JSON-java/blob/master/src/test/java/org/json/junit/M4StreamTest.java)
 
-Turn the JSONObject to the stream in type of Map.Entry<String, Object>. 
-In this way, it keeps the original key of JSONObject and easily be filtered, sorted and applied other actions.
+Turn the JSONObject to the stream in the type of Map.Entry<String, Object>. 
+In this way, it keeps the original key of JSONObject and easily be filtered, sorted, and applied to other actions.
 
-For JSONArray in JSONObject, I split the array and add index of array as key. Then add them into stream.
+For JSONArray in JSONObject, I add an index to each object in JSONArray as the key and add them into the stream.
 
 <h2>Two ways of transforming JSONObject to stream</h2>
 
 <h3>1. Recursive Stream</h3>
 
-```
+```java 
 public Stream<Map.Entry<String, Object>> stream();
 ```
 
 <h3>2. Spliterator of Stream</h3>
 
-```
+```java 
 public Stream<Map.Entry<String, Object>> stream();
 public Spliterator<Map.Entry<String, Object>> spliterator();
 static class JSONObjectSpliterator implements Spliterator<Map.Entry<String, Object>>{
@@ -36,11 +36,11 @@ static class JSONObjectSpliterator implements Spliterator<Map.Entry<String, Obje
 ```
 
 <p>In my opinion, the first way is more abstract but the code is more elegant.
-The second way is more comprehensive and helpful in understand stream. </p>
+The second way is more comprehensive and helpful in understanding stream. </p>
 
 <h2>Maven</h2>
 The project is based on Maven. 
-Since Milestone 4 uses Stream, it needs to adjust the jdk to 1.8.
+Since Milestone 4 uses Stream, it needs to adjust the JDK to 1.8.
 
 ```xml
 <plugin>
@@ -75,7 +75,7 @@ Test Units Cases: src/test/java/org/json/junit/M4StreamTest.java
 
 <h3>Test Unites Cases:</h3>
 
-```
+```java 
 //JSONObject stream(): print key and value
 @Test
 public void testJSONObjectStreamForEach();
@@ -110,16 +110,21 @@ There are two ways to transform JSONObject into stream.
 
 <h3>1. Recursive Stream</h3>
 
-```
+```java 
+/*
+*   Recursive Stream
+* */
 public Stream<Map.Entry<String, Object>> stream(){
     Stream<Map.Entry<String, Object>> resultingStream = null;
     for(Map.Entry<String, Object> entry: map.entrySet()){
+        //first, add new stuff to stream
         if(resultingStream == null){
             resultingStream = Stream.of(entry);
         }
         else{
             resultingStream = Stream.concat(resultingStream, Stream.of(entry));
         }
+        //then, check whether to recursion
         Object object = entry.getValue();
         if(object instanceof JSONObject){
             //recursive call
@@ -134,7 +139,6 @@ public Stream<Map.Entry<String, Object>> stream(){
             }
             resultingStream = Stream.concat(resultingStream, json.stream());
         }
-
     }
     return resultingStream;
 }
@@ -142,7 +146,7 @@ public Stream<Map.Entry<String, Object>> stream(){
 
 <h3>2. Spliterator</h3>
 
-```
+```java 
 static class JSONObjectSpliterator implements Spliterator<Map.Entry<String, Object>> {
     private final JSONObject root;
     private JSONObject tree;
