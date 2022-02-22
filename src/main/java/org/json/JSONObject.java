@@ -2718,8 +2718,7 @@ public class JSONObject {
     }
 
     /*
-    *
-    *
+    *   1. Recursive Stream
     * */
     public Stream<Map.Entry<String, Object>> stream(){
         Stream<Map.Entry<String, Object>> resultingStream = null;
@@ -2752,7 +2751,11 @@ public class JSONObject {
 
 
     /*
+     *   2. Spliterator of Stream
+     * */
+    /*
 
+    //Spliterator of Stream
     public Stream<Map.Entry<String, Object>> stream() {
         return StreamSupport.stream(this.spliterator(), false);
     }
@@ -2761,6 +2764,7 @@ public class JSONObject {
         return new JSONObjectSpliterator(this);
     }
 
+    //Spliterator of Stream
     static class JSONObjectSpliterator implements Spliterator<Map.Entry<String, Object>> {
         private final JSONObject root;
         private JSONObject tree;
