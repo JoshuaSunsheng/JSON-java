@@ -36,18 +36,12 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.math.BigDecimal;
 import java.math.BigInteger;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.IdentityHashMap;
-import java.util.Iterator;
-import java.util.Locale;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
-import java.util.ResourceBundle;
-import java.util.Set;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 /**
  * A JSONObject is an unordered collection of name/value pairs. Its external
@@ -1169,7 +1163,7 @@ public class JSONObject {
     static BigDecimal objectToBigDecimal(Object val, BigDecimal defaultValue) {
         return objectToBigDecimal(val, defaultValue, true);
     }
-    
+
     /**
      * @param val value to convert
      * @param defaultValue default value to return is the conversion doesn't work or is null.
@@ -1552,12 +1546,12 @@ public class JSONObject {
                         final Object result = method.invoke(bean);
                         if (result != null) {
                             // check cyclic dependency and throw error if needed
-                            // the wrap and populateMap combination method is 
+                            // the wrap and populateMap combination method is
                             // itself DFS recursive
                             if (objectsRecord.contains(result)) {
                                 throw recursivelyDefinedObjectException(key);
                             }
-                            
+
                             objectsRecord.add(result);
 
                             this.map.put(key, wrap(result, objectsRecord));
@@ -1566,7 +1560,7 @@ public class JSONObject {
 
                             // we don't use the result anywhere outside of wrap
                             // if it's a resource we should be sure to close it
-                            // after calling toString 
+                            // after calling toString
                             if (result instanceof Closeable) {
                                 try {
                                     ((Closeable) result).close();
@@ -2722,4 +2716,108 @@ public class JSONObject {
             "JavaBean object contains recursively defined member variable of key " + quote(key)
         );
     }
+
+    /*
+    *
+    *
+    * */
+    public Stream<Map.Entry<String, Object>> stream(){
+        Stream<Map.Entry<String, Object>> resultingStream = null;
+        for(Map.Entry<String, Object> entry: map.entrySet()){
+            //first, add new stuff to stream
+            if(resultingStream == null){
+                resultingStream = Stream.of(entry);
+            }
+            else{
+                resultingStream = Stream.concat(resultingStream, Stream.of(entry));
+            }
+            //then, check whether to recursion
+            Object object = entry.getValue();
+            if(object instanceof JSONObject){
+                //recursive call
+                resultingStream = Stream.concat(resultingStream, ((JSONObject) object).stream());
+            }
+            else if(object instanceof  JSONArray){
+                //transform a JSONArray to a JSONObject, then recursive call
+                JSONArray jsonArray  = (JSONArray)(object);
+                JSONObject json = new JSONObject(jsonArray.length());
+                for (int i = 0; i < jsonArray.length(); i++) {
+                    json.put(i + "", jsonArray.opt(i));
+                }
+                resultingStream = Stream.concat(resultingStream, json.stream());
+            }
+        }
+        return resultingStream;
+    }
+
+
+    /*
+
+    public Stream<Map.Entry<String, Object>> stream() {
+        return StreamSupport.stream(this.spliterator(), false);
+    }
+
+    public Spliterator<Map.Entry<String, Object>> spliterator() {
+        return new JSONObjectSpliterator(this);
+    }
+
+    static class JSONObjectSpliterator implements Spliterator<Map.Entry<String, Object>> {
+        private final JSONObject root;
+        private JSONObject tree;
+
+        JSONObjectSpliterator(JSONObject t) {
+            root = tree = t;
+        }
+
+        @Override
+        public int characteristics() {
+            return Spliterator.DISTINCT | Spliterator.IMMUTABLE | Spliterator.NONNULL;
+        }
+
+        @Override
+        public long estimateSize() {
+            return Long.MAX_VALUE;
+        }
+
+        //Returns: false if no remaining elements existed upon entry to this method, else true.
+        @Override
+        public boolean tryAdvance(Consumer<? super Map.Entry<String, Object>> action) {
+            JSONObject current = tree;
+
+            for(Map.Entry<String, Object> entry : tree.entrySet()){
+                action.accept(entry);
+                Object value = entry.getValue();
+                if(value instanceof  JSONObject){
+                    tree = (JSONObject) value;
+                    tryAdvance(action);
+                }
+                else if(value instanceof  JSONArray){
+                     //transform a JSONArray to a JSONObject, then recursive call
+                    JSONArray jsonArray  = (JSONArray)(value);
+                    JSONObject json = new JSONObject(jsonArray.length());
+                    for (int i = 0; i < jsonArray.length(); i++) {
+                        json.put(i + "", jsonArray.opt(i));
+                    }
+                    tree = json;
+                    tryAdvance(action);
+                }
+            }
+
+            tree = current;
+
+            if (tree == root)
+                return false;
+            else
+                return true;
+        }
+
+        @Override
+        public Spliterator<Map.Entry<String, Object>> trySplit() {
+            return null;
+        }
+    }
+
+    */
 }
+
+
