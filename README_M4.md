@@ -2,19 +2,20 @@
 
 Add streaming methods to the library that allow the client code to chain operations on JSON nodes.
 
-Streaming methods in: 
+Streaming methods: src/main/java/org/json/JSONObject.java
 
-Test Units in:
+(https://github.com/JoshuaSunsheng/JSON-java/blob/master/src/main/java/org/json/JSONObject.java)
+
+Test Units Cases: src/test/java/org/json/junit/M4StreamTest.java
+
+(https://github.com/JoshuaSunsheng/JSON-java/blob/master/src/test/java/org/json/junit/M4StreamTest.java)
 
 Turn the JSONObject to the stream in type of Map.Entry<String, Object>. 
-In this way, it keeps the original key of JSONObject and easily be filtered and sorted by key.
+In this way, it keeps the original key of JSONObject and easily be filtered, sorted and applied other actions.
 
 For JSONArray in JSONObject, I split the array and add index of array as key. Then add them into stream.
 
 <h2>Two ways of transforming JSONObject to stream</h2>
-
-<p>In my opinion, First way is more abstract but the code is more elegant.
-Second way is more comprehensive and helpful in understand stream. </p>
 
 <h3>1. Recursive Stream</h3>
 
@@ -33,6 +34,9 @@ static class JSONObjectSpliterator implements Spliterator<Map.Entry<String, Obje
     public boolean tryAdvance(Consumer<? super Map.Entry<String, Object>> action);
 }
 ```
+
+<p>In my opinion, the first way is more abstract but the code is more elegant.
+The second way is more comprehensive and helpful in understand stream. </p>
 
 <h2>Maven</h2>
 The project is based on Maven. 
@@ -54,10 +58,11 @@ Since Milestone 4 uses Stream, it needs to adjust the jdk to 1.8.
 
 <h2>Test Units (Junit)</h2>
 
-<p>Test file position: src/test/java/org/json/junit/M4StreamTest.java.</p>
-<link></link>
+Test Units Cases: src/test/java/org/json/junit/M4StreamTest.java
 
-Test streams features:
+(https://github.com/JoshuaSunsheng/JSON-java/blob/master/src/test/java/org/json/junit/M4StreamTest.java)
+
+<h3>Test streams features:</h3>
 
 | methods   | Params |
 | ---       | ---    | 
@@ -68,6 +73,7 @@ Test streams features:
 | findFirst | | 
 | sorted    | Comparator.comparing(Map.Entry::getKey) | 
 
+<h3>Test Unites Cases:</h3>
 
 ```
 //JSONObject stream(): print key and value
@@ -96,10 +102,11 @@ public void testJSONStreamMatchToList()
 
 <h2>Implement</h2>
 
-<p>Source file position: src/main/java/org/json/JSONObject.java</p>
-<link></link>
+Streaming methods: src/main/java/org/json/JSONObject.java
 
-There is two ways to transform JSONObject into stream.
+(https://github.com/JoshuaSunsheng/JSON-java/blob/master/src/main/java/org/json/JSONObject.java)
+
+There are two ways to transform JSONObject into stream.
 
 <h3>1. Recursive Stream</h3>
 
