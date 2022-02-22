@@ -52,7 +52,7 @@ public class M4StreamTest {
     @Test
     public void testJSONObjectStreamKeyToUpperCase(){
         System.out.println("------------------------");
-        System.out.println("JSONObject stream: print out key & value");
+        System.out.println("JSONObject stream: filter and transform key to upper case");
         jsonObject.stream()
                 .filter(e -> e.getValue() instanceof String)
                 .map(e->{
@@ -69,9 +69,11 @@ public class M4StreamTest {
     @Test
     public void testJSONObjectStreamToMap(){
         System.out.println("------------------------");
-        System.out.println("JSONObject stream: print out key & value");
+        System.out.println("JSONObject stream: ToMap");
         Map<String, Object> map = jsonObject.stream()
                 .collect(Collectors.toMap(e -> e.getKey().toUpperCase(), e -> e.getValue(), (x1, x2) -> x1));
+        map.entrySet().stream()
+                .forEach(System.out::println);
     }
 
     /*
@@ -82,7 +84,7 @@ public class M4StreamTest {
     @Test
     public void testJSONStreamMatch(){
         System.out.println("------------------------");
-        System.out.println("JSONObject stream: Retrieving a Match by key \"onclick\"");
+        System.out.println("JSONObject stream: Retrieving the first Match by key \"onclick\"");
         //match key
         Optional<Object> firstValue = jsonObject.stream()
                 .filter(e -> "onclick".equals(e.getKey()))
@@ -91,7 +93,7 @@ public class M4StreamTest {
         System.out.println(firstValue.get());
 
         System.out.println("------------------------");
-        System.out.println("JSONObject stream: Retrieving a Match by value of \"CreateNewDoc()\"");
+        System.out.println("JSONObject stream: Retrieving the first Match by value of \"CreateNewDoc()\"");
         //match value
         Optional<String> firstKey = jsonObject.stream()
                 .filter(e -> "CreateNewDoc()".equals(e.getValue()))
@@ -107,7 +109,7 @@ public class M4StreamTest {
     public void testJSONStreamMatchToList(){
 
         System.out.println("------------------------");
-        System.out.println("JSONObject stream: Retrieving Multiple Results");
+        System.out.println("JSONObject stream: filter key and turn values to list");
         //Retrieving Multiple Results
         List<Object> buttons = jsonObject.stream()
                 .filter(e->"onclick".equals(e.getKey()))
@@ -124,7 +126,7 @@ public class M4StreamTest {
     @Test
     public void testJSONStreamSortByKey(){
         System.out.println("------------------------");
-        System.out.println("JSONObject stream: sort");
+        System.out.println("JSONObject stream: filter and sort by key");
         //sort
         jsonObject.stream()
                 .filter(e->e.getValue() instanceof String)
