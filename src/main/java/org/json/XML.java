@@ -28,13 +28,12 @@ import org.json.execption.JSONFoundExecption;
 
 import java.io.Reader;
 import java.io.StringReader;
-import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Iterator;
-import java.util.List;
-import java.util.function.Consumer;
+import java.util.concurrent.*;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 
 
@@ -1552,4 +1551,51 @@ public class XML {
 
         return jo;
     }
+
+    /*
+    * Milestone 5
+    * Add asynchronous methods to the library that allow the client code to proceed
+    * example: XML.toJSONObject(aReader, (JSONObject jo) -> {jo.write(aWriter);}, (Exception e) -> { something went wrong });
+    *
+    * */
+    static ThreadPoolExecutor executor = (ThreadPoolExecutor) Executors.newFixedThreadPool(2);//LinkedBlockingQueue
+    public static CustomFuture<String> toJSONObject(Reader reader, BiFunction<JSONObject, String, String> fun, Function<Throwable, Object> fail) throws ExecutionException, InterruptedException {
+        Function futureFun = (a) -> {
+            Object msg = null;
+            System.out.println("Async: " + Thread.currentThread().getName() + " is transforming xml to JSON in the background.");
+            try{
+                JSONObject jsonObject = toJSONObject(reader, XMLParserConfiguration.ORIGINAL);
+                System.out.println("Async: xml to toJSONObject done");
+                msg  = fun.apply(jsonObject, "M5_inner");
+            }catch (Exception e){
+                System.out.println("Async: Exception happens!");
+                msg = fail.apply(e);
+            }catch (Error e){
+                System.out.println("Async: Error happens!");
+                msg = fail.apply(e);
+            }
+            return msg;
+        };
+        CustomFuture<String> customFuture = new CustomFuture(futureFun);
+        executor.submit(customFuture);
+        return customFuture;
+    }
+
+//    public static CompletableFuture<String> toJSONObject(Reader reader, BiFunction<JSONObject, String, String> fun, Function<Throwable, Object> fail) throws ExecutionException, InterruptedException {
+//        CompletableFuture<String> completableFuture = CompletableFuture.supplyAsync(() -> {
+//            String msg = null;
+//            System.out.println("Async: " + Thread.currentThread().getName() + " is transforming xml to JSON in the background.");
+//            try {
+//                JSONObject jsonObject = toJSONObject(reader, XMLParserConfiguration.ORIGINAL);
+//                System.out.println("Async: xml to toJSONObject done");
+//                msg = fun.apply(jsonObject, "M5_inner");
+//            } catch (Throwable e) {
+//                System.out.println("Async: Something wrong happens!");
+//                msg = (String) fail.apply(e);
+//            }
+//            return msg;
+//        });
+//        return completableFuture;
+//    }
+
 }
